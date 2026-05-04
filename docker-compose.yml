@@ -1,0 +1,113 @@
+networks:
+    internal:
+services:
+    fhtagn:
+        image: kooldev/php:8.4
+        container_name: fhtagn
+        working_dir: /fhtagn
+        restart: always
+        networks:
+            - internal
+        volumes:
+            - ".:/fhtagn"
+            - "./docker/php/php-ini-overrides.ini:/usr/local/etc/php/conf.d/zzz-overrides.ini:ro"
+        links:
+            - fhtagn-database
+        depends_on:
+            - fhtagn-database
+        environment:
+            - PHP_EXECUTABLE_PATH=/usr/local/bin/php
+    fhtagn-nginx:
+        image: nginx:alpine
+        container_name: fhtagn-nginx
+        restart: always
+        working_dir: /fhtagn
+        networks:
+            - internal
+        ports:
+            - "9000:80"
+        volumes:
+            - .:/fhtagn
+            - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+        depends_on:
+            - fhtagn
+    fhtagn-composer:
+        image: composer:latest
+        container_name: fhtagn-composer
+        working_dir: /fhtagn
+        command: update --ignore-platform-reqs
+        volumes:
+            - .:/fhtagn
+        restart: on-failure
+        depends_on:
+            - fhtagn
+    fhtagn-database:
+        image: mariadb:latest
+        restart: always
+        container_name: fhtagn-database
+        working_dir: /fhtagn
+        networks:
+            - internal
+        # command: mysqld --skip-grant-tables
+        environment:
+            - MYSQL_ROOT_PASSWORD=password
+            - MYSQL_DATABASE=fhtagn
+            - MYSQL_USER=root
+            - MYSQL_PASSWORD=password
+        volumes:
+            - .:/fhtagn
+            - ./fhtagn-database:/var/lib/mysql
+        ports:
+            - "8005:3306"
+    fhtagn-redis:
+        image: "redis:alpine"
+        ports:
+            - "${FORWARD_REDIS_PORT:-6380}:6381"
+        volumes:
+            - fhtagn-redis:/data
+        networks:
+            - internal
+        command: redis-server --save 20 1 --loglevel warning --requirepass eYVX7EwVmmxKPCDmwMtyKVge8oLd2t81
+    adminer:
+        image: adminer
+        restart: always
+        networks:
+            - internal
+        ports:
+            - "8082:8080"
+    meilisearch:
+        image: getmeili/meilisearch:latest
+        container_name: meilisearch
+        networks:
+            - internal
+        ports:
+            - "7701:7701"
+        environment:
+            MEILI_NO_ANALYTICS: "true" # Optional, disables analytics
+            MEILI_MASTER_KEY: masterKey
+        restart: always
+        volumes:
+            - meilisearch-data:/meili_data
+
+    fhtagn-queue:
+        image: kooldev/php:8.4
+        container_name: fhtagn-queue
+        working_dir: /fhtagn
+        restart: always
+        command: php artisan queue:work --tries=1 --verbose --no-interaction --timeout=60
+        networks:
+            - internal
+        volumes:
+            - ".:/fhtagn"
+            - "./docker/php/php-ini-overrides.ini:/usr/local/etc/php/conf.d/zzz-overrides.ini:ro"
+        depends_on:
+            - fhtagn
+            - fhtagn-redis
+
+volumes:
+    fhtagn-database:
+        driver: local
+    fhtagn-redis:
+        driver: local
+    meilisearch-data: # Create volume for Meilisearch data
+        driver: local
