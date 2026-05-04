@@ -2,9 +2,11 @@
 
 namespace App\Providers;
 
+use App\Repositories\Contracts\OrderRepositoryInterface;
 use App\Repositories\Contracts\PickupPointRepositoryInterface;
 use App\Repositories\Contracts\ProductRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Repositories\OrderRepository;
 use App\Repositories\PickupPointRepository;
 use App\Repositories\ProductRepository;
 use App\Repositories\UserRepository;
@@ -17,6 +19,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(UserRepositoryInterface::class, UserRepository::class);
         $this->app->bind(ProductRepositoryInterface::class, ProductRepository::class);
         $this->app->bind(PickupPointRepositoryInterface::class, PickupPointRepository::class);
+        $this->app->bind(OrderRepositoryInterface::class, OrderRepository::class);
     }
 
     /**
